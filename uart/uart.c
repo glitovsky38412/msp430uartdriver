@@ -138,8 +138,9 @@ int configUSCIUart(UARTConfig * prtInf,USCIUARTRegs * confRegs)
 	// Configure the pointers to the right registers
 	switch(prtInf->moduleName)
 	{
-#if defined(__MSP430_HAS_USCI_A0__) || defined(__MSP430_HAS_USCI__)
+
 		case USCI_A0:
+#if (defined(__MSP430_HAS_USCI_A0__)) && (!defined(__MSP430_HAS_USCI__))
 			confRegs->CTL0_REG = (unsigned char *)&UCA0CTL0;
 			confRegs->CTL1_REG = (unsigned char *)&UCA0CTL1;
 			confRegs->MCTL_REG = (unsigned char *)&UCA0MCTL;
@@ -149,9 +150,23 @@ int configUSCIUart(UARTConfig * prtInf,USCIUARTRegs * confRegs)
 			confRegs->RX_BUF = (unsigned char *)&UCA0RXBUF;
 			confRegs->TX_BUF = (unsigned char *)&UCA0TXBUF;
 			confRegs->IFG_REG = (unsigned char *)&UCA0IFG;
-			break;
 #endif
-#ifdef __MSP430_HAS_USCI_A1__
+
+#if defined(__MSP430_HAS_USCI__) && (!defined(__MSP430_HAS_USCI_A0__)) && (!defined(__MSP430_HAS_USCI_A1__)) && (!defined(__MSP430_HAS_USCI_A2__))
+			confRegs->CTL0_REG = (unsigned char *)&UCA0CTL0;
+			confRegs->CTL1_REG = (unsigned char *)&UCA0CTL1;
+			confRegs->MCTL_REG = (unsigned char *)&UCA0MCTL;
+			confRegs->BR0_REG  = (unsigned char *)&UCA0BR0;
+			confRegs->BR1_REG  = (unsigned char *)&UCA0BR1;
+			confRegs->IE_REG  = (unsigned char *)&UC0IE;
+			confRegs->RX_BUF = (unsigned char *)&UCA0RXBUF;
+			confRegs->TX_BUF = (unsigned char *)&UCA0TXBUF;
+			confRegs->IFG_REG = (unsigned char *)&UC0IFG;
+#endif
+
+			break;
+
+#if (defined(__MSP430_HAS_USCI_A1__)) && (!defined(__MSP430_HAS_USCI__))
 		case USCI_A1:
 			confRegs->CTL0_REG = (unsigned char *)&UCA1CTL0;
 			confRegs->CTL1_REG = (unsigned char *)&UCA1CTL1;
@@ -164,7 +179,7 @@ int configUSCIUart(UARTConfig * prtInf,USCIUARTRegs * confRegs)
 			confRegs->IFG_REG =  (unsigned char *)&UCA1IFG;
 			break;
 #endif
-#ifdef __MSP430_HAS_USCI_A2__
+#if (defined(__MSP430_HAS_USCI_A2__)) && (!defined(__MSP430_HAS_USCI__))
 		case USCI_A2:
 			confRegs->CTL0_REG = (unsigned char *)&UCA2CTL0;
 			confRegs->CTL1_REG = (unsigned char *)&UCA2CTL1;
@@ -177,6 +192,8 @@ int configUSCIUart(UARTConfig * prtInf,USCIUARTRegs * confRegs)
 			confRegs->IFG_REG = (unsigned char *)&UCA2IFG;
 			break;
 #endif
+
+
 	}
 
 	// Place Module in reset to allow us to modify its bits
@@ -470,8 +487,11 @@ int uartSendDataBlocking(UARTConfig * prtInf,unsigned char * buf, int len)
 	{
 		if(prtInf->moduleName == USCI_A0|| prtInf->moduleName == USCI_A1 || prtInf->moduleName == USCI_A2)
 		{
-#if defined(__MSP430_HAS_USCI__) || defined(__MSP430_HAS_USCI_A0__) || defined(__MSP430_HAS_USCI_A1__) || defined(__MSP430_HAS_USCI_A2__)
+#if (defined(__MSP430_HAS_USCI_A0__) || defined(__MSP430_HAS_USCI_A1__) || defined(__MSP430_HAS_USCI_A2__)) && (!defined(__MSP430_HAS_USCI__))
 			while(!( *prtInf->usciRegs->IFG_REG & UCTXIFG));
+			*prtInf->usciRegs->TX_BUF = buf[i];
+#else
+			while(!( *prtInf->usciRegs->IFG_REG & UCA0TXIFG));
 			*prtInf->usciRegs->TX_BUF = buf[i];
 #endif
 		}
@@ -584,9 +604,11 @@ int uartSendDataInt(UARTConfig * prtInf,unsigned char * buf, int len)
 		prtInf->txBuf[i] = buf[i];
 	}
 
-#if defined(__MSP430_HAS_USCI__) || defined(__MSP430_HAS_USCI_A0__) || defined(__MSP430_HAS_USCI_A1__) || defined(__MSP430_HAS_USCI_A2__)
 	// Send the first byte. Since UART interrupt is enabled, it will be called once the byte is sent and will
 	// send the rest of the bytes
+
+#if (defined(__MSP430_HAS_USCI_A0__) || defined(__MSP430_HAS_USCI_A1__) || defined(__MSP430_HAS_USCI_A2__)) && (!defined(__MSP430_HAS_USCI__))
+
 	if(prtInf->moduleName == USCI_A0 || prtInf->moduleName == USCI_A1 || prtInf->moduleName == USCI_A2)
 	{
 		prtInf->txBytesToSend = len;
@@ -599,6 +621,20 @@ int uartSendDataInt(UARTConfig * prtInf,unsigned char * buf, int len)
 		// Trigger the TX IFG. This will cause the Interrupt Vector to be called
 		// which will send the data one byte at a time at each interrupt trigger.
 		*prtInf->usciRegs->IFG_REG |= UCTXIFG;
+	}
+#else
+	if(prtInf->moduleName == USCI_A0 || prtInf->moduleName == USCI_A1 || prtInf->moduleName == USCI_A2)
+	{
+		prtInf->txBytesToSend = len;
+		prtInf->txBufCtr = 0;
+
+		// Enable TX IE
+		*prtInf->usciRegs->IFG_REG &= ~UCA0TXIFG;
+		*prtInf->usciRegs->IE_REG |= UCA0TXIE;
+
+		// Trigger the TX IFG. This will cause the Interrupt Vector to be called
+		// which will send the data one byte at a time at each interrupt trigger.
+		*prtInf->usciRegs->IFG_REG |= UCA0TXIFG;
 	}
 #endif
 
@@ -624,12 +660,19 @@ int uartSendDataInt(UARTConfig * prtInf,unsigned char * buf, int len)
 
 void enableUartRx(UARTConfig * prtInf)
 {
-#if defined(__MSP430_HAS_USCI__) || defined(__MSP430_HAS_USCI_A0__) || defined(__MSP430_HAS_USCI_A1__) || defined(__MSP430_HAS_USCI_A2__)
+#if (defined(__MSP430_HAS_USCI_A0__) || defined(__MSP430_HAS_USCI_A1__) || defined(__MSP430_HAS_USCI_A2__)) && (!defined(__MSP430_HAS_USCI__))
 	if(prtInf->moduleName == USCI_A0|| prtInf->moduleName == USCI_A1 || prtInf->moduleName == USCI_A2)
 	{
 		// Enable RX IE
 		*prtInf->usciRegs->IFG_REG &= ~UCRXIFG;
 		*prtInf->usciRegs->IE_REG |= UCRXIE;
+	}
+#else
+	if(prtInf->moduleName == USCI_A0|| prtInf->moduleName == USCI_A1 || prtInf->moduleName == USCI_A2)
+	{
+		// Enable RX IE
+		*prtInf->usciRegs->IFG_REG &= ~UCA0RXIFG;
+		*prtInf->usciRegs->IE_REG |= UCA0RXIE;
 	}
 #endif
 
@@ -717,7 +760,7 @@ __interrupt void usart1_rx (void)
 
 #endif
 
-#if defined(__MSP430_HAS_USCI__) || defined(__MSP430_HAS_USCI_A0__)
+#if defined(__MSP430_HAS_USCI_A0__)
 #pragma vector=USCI_A0_VECTOR
 __interrupt void USCI_A0_ISR(void)
 {
@@ -760,7 +803,51 @@ __interrupt void USCI_A0_ISR(void)
 }
 #endif
 
-#if defined(__MSP430_HAS_USCI__) || defined(__MSP430_HAS_USCI_A1__)
+#if defined(__MSP430_HAS_USCI__) && (!defined(__MSP430_HAS_USCI_A0__)) && (!defined(__MSP430_HAS_USCI_A1__)) && (!defined(__MSP430_HAS_USCI_A2__))
+
+// USCI A0/B0 Transmit ISR
+#pragma vector=USCIAB0TX_VECTOR
+__interrupt void USCI0TX_ISR(void)
+{
+	// Send data if the buffer has bytes to send
+	if(prtInfList[USCI_A1]->txBytesToSend > 0)
+	{
+	  *prtInfList[USCI_A1]->usciRegs->TX_BUF = prtInfList[USCI_A1]->txBuf[prtInfList[USCI_A1]->txBufCtr];
+	  prtInfList[USCI_A1]->txBufCtr++;
+
+	  // If we've sent all the bytes, set counter to 0 to stop the sending
+	  if(prtInfList[USCI_A1]->txBufCtr == prtInfList[USCI_A1]->txBytesToSend)
+	  {
+		  prtInfList[USCI_A1]->txBufCtr = 0;
+
+		  // Disable TX IE
+		  *prtInfList[USCI_A1]->usciRegs->IE_REG &= ~UCA0TXIE;
+
+		  // Clear TX IFG
+		  *prtInfList[USCI_A1]->usciRegs->IFG_REG &= ~UCA0TXIFG;
+	  }
+	}
+}
+
+// USCI A0/B0 Receive ISR
+#pragma vector=USCIAB0RX_VECTOR
+__interrupt void USCI0RX_ISR(void)
+{
+	// Store received byte in RX Buffer
+	prtInfList[USCI_A1]->rxBuf[prtInfList[USCI_A1]->rxBytesReceived] = *prtInfList[USCI_A1]->usciRegs->RX_BUF;
+	prtInfList[USCI_A1]->rxBytesReceived++;
+
+	// If the received bytes filled up the buffer, go back to beginning
+	if(prtInfList[USCI_A1]->rxBytesReceived > prtInfList[USCI_A1]->rxBufLen)
+	{
+	  prtInfList[USCI_A1]->rxBytesReceived = 0;
+	}
+}
+
+#endif
+
+
+#if defined(__MSP430_HAS_USCI_A1__)
 #pragma vector=USCI_A1_VECTOR
 __interrupt void USCI_A1_ISR(void)
 {
@@ -803,7 +890,7 @@ __interrupt void USCI_A1_ISR(void)
 }
 #endif
 
-#if defined(__MSP430_HAS_USCI__) || defined(__MSP430_HAS_USCI_A2__)
+#if defined(__MSP430_HAS_USCI_A2__)
 #pragma vector=USCI_A2_VECTOR
 __interrupt void USCI_A2_ISR(void)
 {
