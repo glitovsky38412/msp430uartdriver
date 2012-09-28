@@ -1,0 +1,15 @@
+Copyright (c) 2012 All Right Reserved, Gustavo Litovsky
+
+
+You may use this file for any purpose, provided the copyright notices and
+ the attributions remains.
+
+
+THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
+
+KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
+
+PARTICULAR PURPOSE.
+
+All trademarks are properties of their respective owners.
