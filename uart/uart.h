@@ -58,6 +58,7 @@ typedef enum
 	USCI_A0,  /**< USCI_A0 Module  */
 	USCI_A1,  /**< USCI_A1 Module  */
 	USCI_A2,  /**< USCI_A2 Module  */
+	UCA0,
 	USART_0,  /**< USART_0 Module  */
 	USART_1  /**< USART_1 Module  */
 

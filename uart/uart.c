@@ -138,7 +138,6 @@ int configUSCIUart(UARTConfig * prtInf,USCIUARTRegs * confRegs)
 	// Configure the pointers to the right registers
 	switch(prtInf->moduleName)
 	{
-
 		case USCI_A0:
 #if (defined(__MSP430_HAS_USCI_A0__)) && (!defined(__MSP430_HAS_USCI__))
 			confRegs->CTL0_REG = (unsigned char *)&UCA0CTL0;
@@ -151,8 +150,9 @@ int configUSCIUart(UARTConfig * prtInf,USCIUARTRegs * confRegs)
 			confRegs->TX_BUF = (unsigned char *)&UCA0TXBUF;
 			confRegs->IFG_REG = (unsigned char *)&UCA0IFG;
 #endif
-
+			break;
 #if defined(__MSP430_HAS_USCI__) && (!defined(__MSP430_HAS_USCI_A0__)) && (!defined(__MSP430_HAS_USCI_A1__)) && (!defined(__MSP430_HAS_USCI_A2__))
+		case UCA0:
 			confRegs->CTL0_REG = (unsigned char *)&UCA0CTL0;
 			confRegs->CTL1_REG = (unsigned char *)&UCA0CTL1;
 			confRegs->MCTL_REG = (unsigned char *)&UCA0MCTL;
@@ -162,9 +162,8 @@ int configUSCIUart(UARTConfig * prtInf,USCIUARTRegs * confRegs)
 			confRegs->RX_BUF = (unsigned char *)&UCA0RXBUF;
 			confRegs->TX_BUF = (unsigned char *)&UCA0TXBUF;
 			confRegs->IFG_REG = (unsigned char *)&UC0IFG;
-#endif
-
 			break;
+#endif
 
 #if (defined(__MSP430_HAS_USCI_A1__)) && (!defined(__MSP430_HAS_USCI__))
 		case USCI_A1:
@@ -485,16 +484,21 @@ int uartSendDataBlocking(UARTConfig * prtInf,unsigned char * buf, int len)
 	int i = 0;
 	for(i = 0; i < len; i++)
 	{
+#if (defined(__MSP430_HAS_USCI_A0__) || defined(__MSP430_HAS_USCI_A1__) || defined(__MSP430_HAS_USCI_A2__)) && (!defined(__MSP430_HAS_USCI__))
 		if(prtInf->moduleName == USCI_A0|| prtInf->moduleName == USCI_A1 || prtInf->moduleName == USCI_A2)
 		{
-#if (defined(__MSP430_HAS_USCI_A0__) || defined(__MSP430_HAS_USCI_A1__) || defined(__MSP430_HAS_USCI_A2__)) && (!defined(__MSP430_HAS_USCI__))
+
 			while(!( *prtInf->usciRegs->IFG_REG & UCTXIFG));
 			*prtInf->usciRegs->TX_BUF = buf[i];
+		}
 #else
+		if(prtInf->moduleName == UCA0)
+		{
 			while(!( *prtInf->usciRegs->IFG_REG & UCA0TXIFG));
 			*prtInf->usciRegs->TX_BUF = buf[i];
-#endif
 		}
+#endif
+
 
 		if(prtInf->moduleName == USART_0|| prtInf->moduleName == USART_1)
 		{
@@ -623,7 +627,7 @@ int uartSendDataInt(UARTConfig * prtInf,unsigned char * buf, int len)
 		*prtInf->usciRegs->IFG_REG |= UCTXIFG;
 	}
 #else
-	if(prtInf->moduleName == USCI_A0 || prtInf->moduleName == USCI_A1 || prtInf->moduleName == USCI_A2)
+	if(prtInf->moduleName == UCA0)
 	{
 		prtInf->txBytesToSend = len;
 		prtInf->txBufCtr = 0;
@@ -668,7 +672,7 @@ void enableUartRx(UARTConfig * prtInf)
 		*prtInf->usciRegs->IE_REG |= UCRXIE;
 	}
 #else
-	if(prtInf->moduleName == USCI_A0|| prtInf->moduleName == USCI_A1 || prtInf->moduleName == USCI_A2)
+	if(prtInf->moduleName == UCA0)
 	{
 		// Enable RX IE
 		*prtInf->usciRegs->IFG_REG &= ~UCA0RXIFG;
@@ -810,21 +814,21 @@ __interrupt void USCI_A0_ISR(void)
 __interrupt void USCI0TX_ISR(void)
 {
 	// Send data if the buffer has bytes to send
-	if(prtInfList[USCI_A1]->txBytesToSend > 0)
+	if(prtInfList[UCA0]->txBytesToSend > 0)
 	{
-	  *prtInfList[USCI_A1]->usciRegs->TX_BUF = prtInfList[USCI_A1]->txBuf[prtInfList[USCI_A1]->txBufCtr];
-	  prtInfList[USCI_A1]->txBufCtr++;
+	  *prtInfList[UCA0]->usciRegs->TX_BUF = prtInfList[UCA0]->txBuf[prtInfList[UCA0]->txBufCtr];
+	  prtInfList[UCA0]->txBufCtr++;
 
 	  // If we've sent all the bytes, set counter to 0 to stop the sending
-	  if(prtInfList[USCI_A1]->txBufCtr == prtInfList[USCI_A1]->txBytesToSend)
+	  if(prtInfList[UCA0]->txBufCtr == prtInfList[UCA0]->txBytesToSend)
 	  {
-		  prtInfList[USCI_A1]->txBufCtr = 0;
+		  prtInfList[UCA0]->txBufCtr = 0;
 
 		  // Disable TX IE
-		  *prtInfList[USCI_A1]->usciRegs->IE_REG &= ~UCA0TXIE;
+		  *prtInfList[UCA0]->usciRegs->IE_REG &= ~UCA0TXIE;
 
 		  // Clear TX IFG
-		  *prtInfList[USCI_A1]->usciRegs->IFG_REG &= ~UCA0TXIFG;
+		  *prtInfList[UCA0]->usciRegs->IFG_REG &= ~UCA0TXIFG;
 	  }
 	}
 }
@@ -834,13 +838,13 @@ __interrupt void USCI0TX_ISR(void)
 __interrupt void USCI0RX_ISR(void)
 {
 	// Store received byte in RX Buffer
-	prtInfList[USCI_A1]->rxBuf[prtInfList[USCI_A1]->rxBytesReceived] = *prtInfList[USCI_A1]->usciRegs->RX_BUF;
-	prtInfList[USCI_A1]->rxBytesReceived++;
+	prtInfList[UCA0]->rxBuf[prtInfList[UCA0]->rxBytesReceived] = *prtInfList[UCA0]->usciRegs->RX_BUF;
+	prtInfList[UCA0]->rxBytesReceived++;
 
 	// If the received bytes filled up the buffer, go back to beginning
-	if(prtInfList[USCI_A1]->rxBytesReceived > prtInfList[USCI_A1]->rxBufLen)
+	if(prtInfList[UCA0]->rxBytesReceived > prtInfList[UCA0]->rxBufLen)
 	{
-	  prtInfList[USCI_A1]->rxBytesReceived = 0;
+	  prtInfList[UCA0]->rxBytesReceived = 0;
 	}
 }
 

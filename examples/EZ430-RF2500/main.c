@@ -56,17 +56,17 @@ void main(void)
 	 ********************************/
 	initUartDriver();
 
-	// Configure UART Module on USCIA1
-	cnf.moduleName = USCI_A1;
+	// Configure UART Module on UCA0
+	cnf.moduleName = UCA0;
 
 	// Use UART Pins P5.7 and P5.6
-	cnf.portNum = PORT_5;
-	cnf.RxPinNum = PIN7;
-	cnf.TxPinNum = PIN6;
+	cnf.portNum = PORT_3;
+	cnf.RxPinNum = PIN5;
+	cnf.TxPinNum = PIN4;
 
 	// 115200 Baud from 8MHz SMCLK
 	cnf.clkRate = 8000000L;
-	cnf.baudRate = 115200L;
+	cnf.baudRate = 9600L;            // EZ430 allows only up to 9600 baud
 	cnf.clkSrc = UART_CLK_SRC_SMCLK;
 
 	// 8N1
